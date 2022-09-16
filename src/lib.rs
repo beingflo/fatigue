@@ -12,21 +12,26 @@ pub enum RunResult {
     SlowDown,
 }
 
-pub async fn run<F, Fut>(fun: F)
+pub async fn run<F, S, T, Int, Fut>(fun: F, setup: S)
 where
-    F: Fn() -> Fut,
+    F: Fn(T) -> Fut,
+    S: Fn() -> Int,
+    T: Clone,
+    Int: Future<Output = T> + Send + 'static,
     Fut: Future<Output = Result<RunResult, reqwest::Error>> + Send + 'static,
 {
     let max_requests_in_flight = 10000;
-    let target_requests_per_second = 2000;
+    let target_requests_per_second = 200;
 
     let mut handles = Vec::new();
 
     let mut request_start = Vec::new();
     let mut request_end = Vec::new();
 
+    let client = setup().await;
+
     for _ in 0..target_requests_per_second {
-        handles.push(tokio::spawn(fun()));
+        handles.push(tokio::spawn(fun(client.clone())));
         request_start.push(Utc::now());
     }
 
@@ -56,7 +61,7 @@ where
         println!("Num: {}", request_end.len());
 
         for _ in 0..num_spawn {
-            handles.push(tokio::spawn(fun()));
+            handles.push(tokio::spawn(fun(client.clone())));
             request_start.push(Utc::now());
         }
     }

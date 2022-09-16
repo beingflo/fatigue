@@ -1,34 +1,19 @@
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use futures::lock::Mutex;
     use reqwest::{Client, ClientBuilder};
     use serde::Serialize;
 
     use crate::{run, RunResult};
 
-    async fn f(client: Arc<Mutex<Client>>) -> Result<RunResult, reqwest::Error> {
-        let response = client
-            .lock()
-            .await
-            .get("http://localhost:3030/notes")
-            .send()
-            .await?;
+    async fn f(client: Client) -> Result<RunResult, reqwest::Error> {
+        let response = client.get("http://localhost:3030/notes").send().await?;
         assert_eq!(response.status(), 200);
 
         // println!("Latency: {}", elapsed.num_milliseconds());
         return Ok(RunResult::Ok);
     }
 
-    #[derive(Serialize)]
-    struct SignupRequest {
-        name: String,
-        password: String,
-    }
-
-    #[tokio::test]
-    async fn it_works() {
+    async fn setup() -> Client {
         let client = ClientBuilder::new().cookie_store(true).build().unwrap();
         let response = client
             .post("http://localhost:3030/session")
@@ -45,6 +30,17 @@ mod tests {
             assert_eq!(response.status(), 200);
         }
 
-        run(|| f(Arc::new(Mutex::new(client.clone())))).await;
+        client
+    }
+
+    #[derive(Serialize)]
+    struct SignupRequest {
+        name: String,
+        password: String,
+    }
+
+    #[tokio::test]
+    async fn it_works() {
+        run(f, setup).await;
     }
 }
