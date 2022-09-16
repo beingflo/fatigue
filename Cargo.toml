@@ -7,8 +7,11 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1.21.0", features = ["full"] }
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.11", features = ["json", "cookies"] }
 futures = "0.3"
 chrono = "0.4"
+tui = "0.19"
+crossterm = "0.23"
+serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]

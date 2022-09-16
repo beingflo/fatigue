@@ -3,6 +3,7 @@ use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use reqwest;
 use std::future::Future;
+mod tests;
 
 #[derive(PartialEq, Debug)]
 pub enum RunResult {
@@ -10,8 +11,9 @@ pub enum RunResult {
     SlowDown,
 }
 
-pub async fn run_until<Fut>(fun: fn() -> Fut)
+pub async fn run<F, Fut>(fun: F)
 where
+    F: Fn() -> Fut,
     Fut: Future<Output = Result<RunResult, reqwest::Error>> + Send + 'static,
 {
     let max_active = 50;
@@ -41,20 +43,5 @@ where
             futures.push(fun());
         }
         // max_active += 1;
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{run_until, RunResult};
-
-    async fn f() -> Result<RunResult, reqwest::Error> {
-        reqwest::get("https://stage.fieldnotes.land").await?;
-        return Ok(RunResult::Ok);
-    }
-
-    #[tokio::test]
-    async fn it_works() {
-        run_until(f).await;
     }
 }
