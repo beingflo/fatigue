@@ -2,7 +2,6 @@
 mod tests {
     use std::sync::Arc;
 
-    use chrono::Utc;
     use futures::lock::Mutex;
     use reqwest::{Client, ClientBuilder};
     use serde::Serialize;
@@ -10,17 +9,15 @@ mod tests {
     use crate::{run, RunResult};
 
     async fn f(client: Arc<Mutex<Client>>) -> Result<RunResult, reqwest::Error> {
-        let start = Utc::now();
         let response = client
             .lock()
             .await
-            .get("https://api.stage.fieldnotes.land/notes")
+            .get("http://localhost:3030/notes")
             .send()
             .await?;
         assert_eq!(response.status(), 200);
-        let elapsed = Utc::now() - start;
 
-        //println!("{}", elapsed.num_milliseconds());
+        // println!("Latency: {}", elapsed.num_milliseconds());
         return Ok(RunResult::Ok);
     }
 
@@ -34,7 +31,7 @@ mod tests {
     async fn it_works() {
         let client = ClientBuilder::new().cookie_store(true).build().unwrap();
         let response = client
-            .post("https://api.stage.fieldnotes.land/session")
+            .post("http://localhost:3030/session")
             .json(&SignupRequest {
                 name: "test".into(),
                 password: "test".into(),
