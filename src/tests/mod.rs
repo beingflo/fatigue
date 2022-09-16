@@ -1,13 +1,20 @@
 #[cfg(test)]
 mod tests {
+    use chrono::{Duration, Utc};
     use reqwest::{Client, ClientBuilder};
     use serde::Serialize;
 
     use crate::{run, RunResult};
 
     async fn f(client: Client) -> Result<RunResult, reqwest::Error> {
+        let start = Utc::now();
         let response = client.get("http://localhost:3030/notes").send().await?;
+        let elapsed = Utc::now() - start;
         assert_eq!(response.status(), 200);
+
+        if elapsed > Duration::milliseconds(1000) {
+            return Ok(RunResult::SlowDown);
+        }
 
         return Ok(RunResult::Ok);
     }

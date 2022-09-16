@@ -23,9 +23,9 @@ where
     TFut: Future<Output = ()> + Send + 'static,
 {
     let max_requests_in_flight = 10000;
-    let target_requests_per_second = 1000;
+    let mut target_requests_per_second = 1000;
 
-    let num_clients = 20;
+    let num_clients = 10;
 
     let mut handles = Vec::new();
 
@@ -42,9 +42,26 @@ where
         request_start.push(Utc::now());
     }
 
+    let mut last_slow_down = 0;
+
     while !handles.is_empty() {
-        let (_, _, futs) = select_all(handles).await;
+        let (result, _, futs) = select_all(handles).await;
         handles = futs;
+
+        let status = result.unwrap().unwrap();
+
+        if status == RunResult::SlowDown
+            && request_end.len() - last_slow_down > 2 * target_requests_per_second
+        {
+            target_requests_per_second /= 2;
+            last_slow_down = request_end.len();
+            println!("Slow down! -> {}", target_requests_per_second);
+        }
+
+        if request_end.len() % 1000 == 0 {
+            target_requests_per_second += 100;
+            println!("{}", target_requests_per_second);
+        }
 
         if handles.is_empty() {
             let last_start = Utc::now() - request_start.last().unwrap().clone();
@@ -54,7 +71,7 @@ where
 
         request_end.push(Utc::now());
 
-        let requests_in_second = requests_in_last_second(&request_start);
+        let requests_in_second = requests_in_last_second(&mut request_start);
 
         let num_spawn = cmp::min(
             cmp::max(
@@ -64,10 +81,7 @@ where
             max_requests_in_flight - handles.len() as i64,
         );
 
-        println!("{}", num_spawn);
-        println!("Num: {}", request_end.len());
-
-        if request_end.len() == 10000 {
+        if request_end.len() == 1000000 {
             break;
         }
 
@@ -82,12 +96,10 @@ where
     }
 }
 
-fn requests_in_last_second(requests: &Vec<DateTime<Utc>>) -> usize {
+fn requests_in_last_second(requests: &mut Vec<DateTime<Utc>>) -> usize {
     let now = Utc::now();
 
-    requests
-        .iter()
-        .rev()
-        .filter(|&&time| time > now - Duration::seconds(1))
-        .count()
+    requests.retain(|&time| time > now - Duration::seconds(1));
+
+    requests.len()
 }
