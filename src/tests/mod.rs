@@ -17,7 +17,7 @@ mod tests {
             .get("https://api.stage.fieldnotes.land/notes")
             .send()
             .await?;
-        assert!(response.status() == 200);
+        assert_eq!(response.status(), 200);
         let elapsed = Utc::now() - start;
 
         //println!("{}", elapsed.num_milliseconds());
@@ -45,7 +45,7 @@ mod tests {
         assert!(response.is_ok());
 
         if let Ok(response) = response {
-            assert!(response.status() == 200);
+            assert_eq!(response.status(), 200);
         }
 
         run(|| f(Arc::new(Mutex::new(client.clone())))).await;
