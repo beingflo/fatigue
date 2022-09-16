@@ -9,7 +9,6 @@ mod tests {
         let response = client.get("http://localhost:3030/notes").send().await?;
         assert_eq!(response.status(), 200);
 
-        // println!("Latency: {}", elapsed.num_milliseconds());
         return Ok(RunResult::Ok);
     }
 
@@ -33,6 +32,16 @@ mod tests {
         client
     }
 
+    async fn teardown(client: Client) {
+        let response = client.delete("http://localhost:3030/session").send().await;
+
+        assert!(response.is_ok());
+
+        if let Ok(response) = response {
+            assert_eq!(response.status(), 200);
+        }
+    }
+
     #[derive(Serialize)]
     struct SignupRequest {
         name: String,
@@ -41,6 +50,6 @@ mod tests {
 
     #[tokio::test]
     async fn it_works() {
-        run(f, setup).await;
+        run(f, setup, teardown).await;
     }
 }

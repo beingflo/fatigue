@@ -12,26 +12,33 @@ pub enum RunResult {
     SlowDown,
 }
 
-pub async fn run<F, S, T, Int, Fut>(fun: F, setup: S)
+pub async fn run<F, S, I, T, Int, Fut, TFut>(fun: F, setup: S, teardown: T)
 where
-    F: Fn(T) -> Fut,
+    F: Fn(I) -> Fut,
     S: Fn() -> Int,
-    T: Clone,
-    Int: Future<Output = T> + Send + 'static,
+    T: Fn(I) -> TFut,
+    I: Clone,
+    Int: Future<Output = I> + Send + 'static,
     Fut: Future<Output = Result<RunResult, reqwest::Error>> + Send + 'static,
+    TFut: Future<Output = ()> + Send + 'static,
 {
     let max_requests_in_flight = 10000;
-    let target_requests_per_second = 200;
+    let target_requests_per_second = 1000;
+
+    let num_clients = 20;
 
     let mut handles = Vec::new();
 
     let mut request_start = Vec::new();
     let mut request_end = Vec::new();
 
-    let client = setup().await;
+    let mut clients = Vec::new();
+    for _ in 0..num_clients {
+        clients.push(setup().await);
+    }
 
-    for _ in 0..target_requests_per_second {
-        handles.push(tokio::spawn(fun(client.clone())));
+    for i in 0..target_requests_per_second {
+        handles.push(tokio::spawn(fun(clients[i % num_clients].clone())));
         request_start.push(Utc::now());
     }
 
@@ -60,10 +67,18 @@ where
         println!("{}", num_spawn);
         println!("Num: {}", request_end.len());
 
-        for _ in 0..num_spawn {
-            handles.push(tokio::spawn(fun(client.clone())));
+        if request_end.len() == 10000 {
+            break;
+        }
+
+        for i in 0..num_spawn {
+            handles.push(tokio::spawn(fun(clients[i as usize % num_clients].clone())));
             request_start.push(Utc::now());
         }
+    }
+
+    for c in clients.into_iter() {
+        teardown(c).await;
     }
 }
 
