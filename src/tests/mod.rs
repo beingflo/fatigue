@@ -56,7 +56,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn it_works() {
+    async fn fatigue() {
         run(f, setup, teardown).await;
     }
 }
