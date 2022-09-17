@@ -12,11 +12,11 @@ mod tests {
         let elapsed = Utc::now() - start;
         assert_eq!(response.status(), 200);
 
-        if elapsed > Duration::milliseconds(1000) {
+        if elapsed > Duration::milliseconds(200) {
             return Ok(RunResult::SlowDown);
         }
 
-        return Ok(RunResult::Ok);
+        return Ok(RunResult::Ok(elapsed));
     }
 
     async fn setup() -> Client {
